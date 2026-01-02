@@ -161,8 +161,8 @@ bool writeHeader = !filesystem::exists(outPath);
 
 ofstream csv(outPath, ios::out | ios::app);
 if (!csv.is_open()) {
-    cerr << "❌ Khong mo duoc results.csv (co the file dang bi khoa boi Excel/Editor).\n";
-    cerr << "👉 Hay dong results.csv (Excel/Preview) va chay lai.\n";
+    cerr << " Khong mo duoc results.csv (co the file dang bi khoa boi Excel/Editor).\n";
+    cerr << " Hay dong results.csv (Excel/Preview) va chay lai.\n";
     return 1;
 }
 
