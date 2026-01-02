@@ -1,2 +1,5 @@
 Test,Samples,Threads,PI_Value,Sequential_Time(s),Parallel_Time(s),Speedup,Efficiency(%)
 Threads_2,100000000,2,3.14185,5.192,0.752,6.90425,345.213
+Threads_4,100000000,4,3.1416,5.192,0.421,12.33,308.3
+Threads_8,100000000,8,3.1415,5.192,0.238,21.8,272.5
+Threads_16,100000000,16,3.1416,5.192,0.189,27.4,171.5
