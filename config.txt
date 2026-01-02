@@ -1,0 +1,27 @@
+# FILE CẤU HÌNH TÍNH TOÁN PI SONG SONG
+# =====================================
+
+# Chọn kịch bản:
+# 1 = Cố định dữ liệu, thay đổi số luồng
+# 2 = Cố định số luồng, thay đổi dữ liệu
+SCENARIO=2
+
+# ===== CẤU HÌNH KỊCH BẢN 1 =====
+# Số mẫu cố định (khuyến nghị: 10000000 - 1000000000)
+FIXED_SAMPLES=1000000000
+
+# Danh sách số luồng để thử nghiệm (ngăn cách bởi dấu phẩy)
+THREAD_LIST= 1,2,4,8,16
+
+# ===== CẤU HÌNH KỊCH BẢN 2 =====
+# Số luồng cố định
+FIXED_THREADS=8
+
+# Danh sách số mẫu để thử nghiệm (ngăn cách bởi dấu phẩy)
+SAMPLE_LIST=10000000,50000000,100000000,200000000,500000000
+
+# ===== GHI CHÚ =====
+# - Số mẫu càng lớn thì kết quả càng chính xác nhưng thời gian tính càng lâu
+# - Số luồng nên là bội số của số core CPU (kiểm tra: lscpu | grep "CPU(s)")
+# - Với máy 4 core, nên dùng: 1,2,4,8
+# - Với máy 8 core, nên dùng: 1,2,4,8,16
