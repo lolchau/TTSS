@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <cmath>
 #include <string>
+#include <filesystem>
 
 using namespace std;
 
@@ -153,6 +154,23 @@ int main() {
 
     Config config = readConfig("config.txt");
 
+    filesystem::path outPath = filesystem::current_path() / "results.csv";
+cout << ">>> Ghi ket qua vao: " << outPath.string() << "\n";
+
+bool writeHeader = !filesystem::exists(outPath);
+
+ofstream csv(outPath, ios::out | ios::app);
+if (!csv.is_open()) {
+    cerr << "❌ Khong mo duoc results.csv (co the file dang bi khoa boi Excel/Editor).\n";
+    cerr << "👉 Hay dong results.csv (Excel/Preview) va chay lai.\n";
+    return 1;
+}
+
+if (writeHeader) {
+    csv << "Test,Samples,Threads,PI_Value,Sequential_Time(s),Parallel_Time(s),Speedup,Efficiency(%)\n";
+    csv.flush();
+}
+
     if (config.scenario == 1) {
         cout << "KICH BAN 1: CO DINH DU LIEU - DOI SO LUONG\n\n";
 
@@ -176,6 +194,18 @@ int main() {
             printResult(config.fixed_samples, threads,
                         pi_par, t_par, speedup, efficiency, false);
             cout << ">>> KET THUC THREAD = " << threads << endl;
+            cout << "Threads " << threads
+                 << " | Speedup = " << speedup
+                 << " | Efficiency = " << efficiency << "\n";
+/* ================== file results ================== */
+            csv << "Threads_" << threads << ","
+                << config.fixed_samples << ","
+                << threads << ","
+                << pi_par << ","
+                << t_seq << ","
+                << t_par << ","
+                << speedup << ","
+                << efficiency << "\n";
         }
     }
     else {
@@ -195,8 +225,18 @@ int main() {
 
             printResult(samples, config.fixed_threads,
                         pi_par, t_par, speedup, efficiency, false);
+
+            csv << "Samples_" << samples << ","
+                << samples << ","
+                << config.fixed_threads << ","
+                << pi_par << ","
+                << t_seq << ","
+                << t_par << ","
+                << speedup << ","
+                << efficiency << "\n";
         }
     }
-
+    csv.close();
+    cout << "\nHOAN THANH!\n";
     return 0;
 }
