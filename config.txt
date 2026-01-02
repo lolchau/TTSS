@@ -25,3 +25,6 @@ SAMPLE_LIST=10000000,50000000,100000000,200000000,500000000
 # - Số luồng nên là bội số của số core CPU (kiểm tra: lscpu | grep "CPU(s)")
 # - Với máy 4 core, nên dùng: 1,2,4,8
 # - Với máy 8 core, nên dùng: 1,2,4,8,16
+
+# ===Cách chạy===
+# g++ -std=c++20 -fopenmp main.cpp -o main
