@@ -106,33 +106,27 @@ double calculatePiSequential(long long samples, double& time_taken, unsigned int
 
 /* ================== SONG SONG ================== */
 double calculatePiParallel(long long samples, int threads, double& time_taken, unsigned int run_id = 0) {
-    vector<long long> local_count(threads, 0);
-
+    long long inside = 0;
     double start = omp_get_wtime();
 
-    #pragma omp parallel num_threads(threads)
+    #pragma omp parallel num_threads(threads) reduction(+:inside)
     {
-        int tid = omp_get_thread_num();
         unsigned int seed = (unsigned int)time(NULL)
-                            ^ (tid * 123456789u)
-                            ^ (run_id * 362437u);
+                          ^ (omp_get_thread_num() * 123456789u)
+                          ^ (run_id * 362437u);
 
         #pragma omp for schedule(static)
         for (long long i = 0; i < samples; i++) {
             double x = fast_rand(seed);
             double y = fast_rand(seed);
-            if (x * x + y * y <= 1.0)
-                local_count[tid]++;
+            if (x * x + y * y <= 1.0) inside++;
         }
     }
-
-    long long inside = 0;
-    for (int i = 0; i < threads; i++)
-        inside += local_count[i];
 
     time_taken = omp_get_wtime() - start;
     return 4.0 * inside / samples;
 }
+
 
 /* ================== IN KẾT QUẢ ================== */
 void printResult(long long n, int threads, double pi, double time_taken,

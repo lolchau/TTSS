@@ -1,0 +1,169 @@
+================================================================================
+    HUONG DAN NHANH - CHUONG TRINH NHAN MA TRAN VOI VECTOR (WINDOWS)
+================================================================================
+
+BUOC 1: CAI DAT COMPILER
+================================================================================
+
+Chon 1 trong 3 tuy chon sau:
+
+[OPTION 1] MinGW-w64 (KHUYEN NGHI)
+-----------------------------------
+1. Tai ve tu: https://winlibs.com/
+2. Chon: "Win64 - GCC ... UCRT runtime ... POSIX threads"
+3. Giai nen vao: C:\mingw64
+4. Them vao PATH:
+   - Windows 10/11: Settings > System > About > Advanced system settings
+   - Trong Environment Variables, chon Path, bam Edit
+   - Bam New va them: C:\mingw64\bin
+   - Bam OK de luu
+5. Mo Command Prompt MOI va kiem tra:
+   g++ --version
+
+[OPTION 2] TDM-GCC
+-----------------------------------
+1. Tai ve tu: https://jmeubank.github.io/tdm-gcc/
+2. Chay installer
+3. Chon: MinGW-w64/TDM64
+4. Check tat ca cac components (bao gom OpenMP)
+5. Kiem tra:
+   g++ --version
+
+[OPTION 3] Visual Studio
+-----------------------------------
+1. Tai ve Visual Studio Community: https://visualstudio.microsoft.com/
+2. Chon: Desktop development with C++
+3. Dam bao chon: C++ OpenMP support
+4. Su dung Developer Command Prompt for VS
+
+
+BUOC 2: CAI DAT PYTHON (DE VE DO THI)
+================================================================================
+
+1. Tai Python tu: https://www.python.org/downloads/
+2. QUAN TRONG: Tick vao "Add Python to PATH" khi cai dat
+3. Mo Command Prompt va chay:
+   python --version
+4. Cai dat thu vien:
+   pip install matplotlib numpy
+
+
+BUOC 3: CHAY CHUONG TRINH
+================================================================================
+
+1. Giai nen toan bo file vao mot thu muc
+2. Mo Command Prompt trong thu muc do
+3. Chay cac lenh sau:
+
+   build.bat          <- Bien dich chuong trinh
+   run.bat            <- Chay chuong trinh
+
+   Hoac su dung:
+   test.bat           <- Menu test voi nhieu kich ban
+
+
+CAC FILE QUAN TRONG
+================================================================================
+
+matrix_vector_multiply.cpp  - Code chinh
+matrix_config.txt          - File cau hinh (sua o day)
+
+build.bat                  - Bien dich
+run.bat                    - Chay chuong trinh
+test.bat                   - Menu test
+clean.bat                  - Don dep file tam
+
+
+CHINH SUA CAU HINH
+================================================================================
+
+Mo file: matrix_config.txt
+
+Thay doi cac tham so:
+
+MATRIX_ROWS=1000           <- Kich thuoc ma tran
+MATRIX_COLS=1000           
+NUM_THREADS=4              <- So luong (= so core CPU)
+
+RUN_SEQUENTIAL=true        <- Chay phuong phap nao
+RUN_1D_PARTITION=true
+RUN_2D_PARTITION=true
+RUN_RING_TOPOLOGY=true
+
+
+KIEM TRA SO CORE CPU
+================================================================================
+
+Chay lenh:
+   echo %NUMBER_OF_PROCESSORS%
+
+Hoac mo Task Manager > Performance > CPU > Cores
+
+
+CAC KICH BAN TEST MAU (trong test.bat)
+================================================================================
+
+[1] Test nhanh (500x500)        - Kiem tra nhanh, mat vai giay
+[2] Test trung binh (2000x2000) - Can bang
+[3] Test lon (5000x5000)        - Danh gia hieu suat that
+[4] So sanh so luong            - Test voi 1, 2, 4, 8 luong
+
+
+XEM DO THI
+================================================================================
+
+Sau khi chay chuong trinh:
+
+   python plot_matrix_chart.py
+
+Do thi se hien thi:
+   - So sanh thoi gian thuc thi
+   - Toc do tang toc (Speedup)
+
+
+XU LY LOI THUONG GAP
+================================================================================
+
+LOI: "g++ is not recognized"
+GIAI PHAP: 
+   - Kiem tra PATH da chua duong dan den g++.exe
+   - Khoi dong lai Command Prompt sau khi them PATH
+   - Chay Command Prompt as Administrator
+
+LOI: "cannot find -lgomp"  
+GIAI PHAP:
+   - Cai dat lai compiler va chon tat ca components
+   - Hoac dung TDM-GCC (da bao gom OpenMP)
+
+LOI: Python "No module named 'matplotlib'"
+GIAI PHAP:
+   pip install matplotlib numpy
+
+LOI: Chuong trinh chay qua cham
+GIAI PHAP:
+   - Giam kich thuoc ma tran trong matrix_config.txt
+   - Tat Windows Defender tam thoi
+   - Dong cac ung dung nen
+
+
+LIEN HE HO TRO
+================================================================================
+
+Neu gap van de:
+
+1. Kiem tra lai cac buoc cai dat
+2. Chay Command Prompt as Administrator
+3. Kiem tra antivirus khong block file .exe
+4. Cai dat Visual C++ Redistributable:
+   https://aka.ms/vs/17/release/vc_redist.x64.exe
+
+
+HUONG DAN DAY DU
+================================================================================
+
+Xem file README.md de co huong dan chi tiet hon.
+
+
+================================================================================
+CHUC BAN THANH CONG!
+================================================================================
