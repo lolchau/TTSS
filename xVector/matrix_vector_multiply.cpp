@@ -13,8 +13,7 @@ using namespace std;
 
 // Struct để lưu cấu hình
 struct Config {
-    int matrix_rows;           // Số hàng ma trận
-    int matrix_cols;           // Số cột ma trận (cũng là kích thước vector)
+    long long vector_size;     // Kích thước vector
     int num_threads;           // Số luồng
     bool run_sequential;       // Chạy tuần tự
     bool run_1d_partition;     // Chạy phân hoạch 1 chiều
@@ -32,8 +31,7 @@ void enableUTF8Console() {
 Config readConfig(const string& filename) {
     Config config;
     // Giá trị mặc định
-    config.matrix_rows = 1000;
-    config.matrix_cols = 1000;
+    config.vector_size = 10000000;
     config.num_threads = 4;
     config.run_sequential = true;
     config.run_1d_partition = true;
@@ -50,11 +48,8 @@ Config readConfig(const string& filename) {
     while (getline(file, line)) {
         if (line.empty() || line[0] == '#') continue;
         
-        if (line.find("MATRIX_ROWS=") == 0) {
-            config.matrix_rows = stoi(line.substr(12));
-        }
-        else if (line.find("MATRIX_COLS=") == 0) {
-            config.matrix_cols = stoi(line.substr(12));
+        if (line.find("VECTOR_SIZE=") == 0) {
+            config.vector_size = stoll(line.substr(12));
         }
         else if (line.find("NUM_THREADS=") == 0) {
             config.num_threads = stoi(line.substr(12));
@@ -81,55 +76,17 @@ Config readConfig(const string& filename) {
     return config;
 }
 
-// Tạo ma trận ngẫu nhiên
-void createRandomMatrix(double** &matrix, int rows, int cols) {
-    matrix = new double*[rows];
-    for (int i = 0; i < rows; i++) {
-        matrix[i] = new double[cols];
-        for (int j = 0; j < cols; j++) {
-            matrix[i][j] = (double)rand() / RAND_MAX * 10.0;
-        }
-    }
-}
-
 // Tạo vector ngẫu nhiên
-void createRandomVector(double* &vec, int size) {
+void createRandomVector(double* &vec, long long size) {
     vec = new double[size];
-    for (int i = 0; i < size; i++) {
+    for (long long i = 0; i < size; i++) {
         vec[i] = (double)rand() / RAND_MAX * 10.0;
     }
 }
 
-// Giải phóng ma trận
-void freeMatrix(double** matrix, int rows) {
-    for (int i = 0; i < rows; i++) {
-        delete[] matrix[i];
-    }
-    delete[] matrix;
-}
-
-// In một phần của ma trận (để kiểm tra)
-void printMatrixSample(double** matrix, int rows, int cols, int sample_size = 5) {
-    int print_rows = min(sample_size, rows);
-    int print_cols = min(sample_size, cols);
-    
-    cout << "Ma tran [" << rows << "x" << cols << "] (hien thi " 
-         << print_rows << "x" << print_cols << " phan tu dau):" << endl;
-    for (int i = 0; i < print_rows; i++) {
-        cout << "  ";
-        for (int j = 0; j < print_cols; j++) {
-            cout << fixed << setprecision(2) << setw(7) << matrix[i][j] << " ";
-        }
-        if (print_cols < cols) cout << "...";
-        cout << endl;
-    }
-    if (print_rows < rows) cout << "  ..." << endl;
-    cout << endl;
-}
-
 // In một phần của vector
-void printVectorSample(double* vec, int size, int sample_size = 10) {
-    int print_size = min(sample_size, size);
+void printVectorSample(double* vec, long long size, int sample_size = 10) {
+    int print_size = min((long long)sample_size, size);
     
     cout << "Vector [" << size << "] (hien thi " << print_size << " phan tu dau):" << endl;
     cout << "  [";
@@ -141,118 +98,101 @@ void printVectorSample(double* vec, int size, int sample_size = 10) {
     cout << "]" << endl << endl;
 }
 
-// So sánh 2 vector (để kiểm tra tính đúng đắn)
-bool compareVectors(double* v1, double* v2, int size, double epsilon = 1e-6) {
-    for (int i = 0; i < size; i++) {
-        if (abs(v1[i] - v2[i]) > epsilon) {
-            return false;
-        }
-    }
-    return true;
+// So sánh 2 kết quả (để kiểm tra tính đúng đắn)
+bool compareResults(double result1, double result2, double epsilon = 1e-3) {
+    return abs(result1 - result2) < epsilon;
 }
 
-// 1.2.1 Nhân tuần tự
-void multiplySequential(double** matrix, double* vec, double* result, 
-                       int rows, int cols, double& time_taken) {
+// 1.2.1 Tích vô hướng tuần tự
+double dotProductSequential(double* vec1, double* vec2, long long size, double& time_taken) {
     double start_time = omp_get_wtime();
     
-    for (int i = 0; i < rows; i++) {
-        result[i] = 0.0;
-        for (int j = 0; j < cols; j++) {
-            result[i] += matrix[i][j] * vec[j];
-        }
+    double result = 0.0;
+    for (long long i = 0; i < size; i++) {
+        result += vec1[i] * vec2[i];
     }
     
     time_taken = omp_get_wtime() - start_time;
+    return result;
 }
 
-// 1.2.2 Nhân song song phân hoạch 1 chiều (phân phối hàng)
-void multiply1DPartition(double** matrix, double* vec, double* result, 
-                        int rows, int cols, int num_threads, double& time_taken) {
+// 1.2.2 Tích vô hướng song song phân hoạch 1 chiều
+double dotProduct1DPartition(double* vec1, double* vec2, long long size, 
+                             int num_threads, double& time_taken) {
     double start_time = omp_get_wtime();
     
-    #pragma omp parallel num_threads(num_threads)
+    double result = 0.0;
+    
+    #pragma omp parallel num_threads(num_threads) reduction(+:result)
     {
         #pragma omp for schedule(static)
-        for (int i = 0; i < rows; i++) {
-            result[i] = 0.0;
-            for (int j = 0; j < cols; j++) {
-                result[i] += matrix[i][j] * vec[j];
-            }
+        for (long long i = 0; i < size; i++) {
+            result += vec1[i] * vec2[i];
         }
     }
     
     time_taken = omp_get_wtime() - start_time;
+    return result;
 }
 
-// 1.2.3 Nhân song song phân hoạch 2 chiều (phân phối cả hàng và cột)
-void multiply2DPartition(double** matrix, double* vec, double* result, 
-                        int rows, int cols, int num_threads, double& time_taken) {
+// 1.2.3 Tích vô hướng song song phân hoạch 2 chiều (chia thành các khối)
+double dotProduct2DPartition(double* vec1, double* vec2, long long size, 
+                             int num_threads, double& time_taken) {
     double start_time = omp_get_wtime();
     
-    // Khởi tạo result
-    for (int i = 0; i < rows; i++) {
-        result[i] = 0.0;
-    }
+    double result = 0.0;
     
-    // Phân hoạch 2 chiều: chia ma trận thành các khối
     #pragma omp parallel num_threads(num_threads)
     {
         int tid = omp_get_thread_num();
         int num_t = omp_get_num_threads();
         
         // Tính kích thước khối cho mỗi luồng
-        int block_rows = (rows + num_t - 1) / num_t;
-        int start_row = tid * block_rows;
-        int end_row = min(start_row + block_rows, rows);
+        long long block_size = (size + num_t - 1) / num_t;
+        long long start_idx = tid * block_size;
+        long long end_idx = min(start_idx + block_size, size);
         
-        // Mỗi luồng xử lý một khối hàng
-        for (int i = start_row; i < end_row; i++) {
-            double sum = 0.0;
-            for (int j = 0; j < cols; j++) {
-                sum += matrix[i][j] * vec[j];
-            }
-            result[i] = sum;
+        // Mỗi luồng xử lý một khối
+        double local_sum = 0.0;
+        for (long long i = start_idx; i < end_idx; i++) {
+            local_sum += vec1[i] * vec2[i];
+        }
+        
+        // Gộp kết quả
+        #pragma omp critical
+        {
+            result += local_sum;
         }
     }
     
     time_taken = omp_get_wtime() - start_time;
+    return result;
 }
 
-// 1.2.4 Nhân song song phân hoạch 1 chiều - Kết nối vòng (Ring topology)
-void multiplyRingTopology(double** matrix, double* vec, double* result, 
-                         int rows, int cols, int num_threads, double& time_taken) {
+// 1.2.4 Tích vô hướng kết nối vòng (Ring topology)
+double dotProductRingTopology(double* vec1, double* vec2, long long size, 
+                              int num_threads, double& time_taken) {
     double start_time = omp_get_wtime();
     
-    // Khởi tạo result
-    for (int i = 0; i < rows; i++) {
-        result[i] = 0.0;
-    }
-    
-    int block_size = (cols + num_threads - 1) / num_threads;
+    double result = 0.0;
+    long long block_size = (size + num_threads - 1) / num_threads;
     
     #pragma omp parallel num_threads(num_threads)
     {
         int tid = omp_get_thread_num();
         int num_t = omp_get_num_threads();
         
-        // Mỗi luồng xử lý một phần của vector
-        double* local_result = new double[rows];
-        for (int i = 0; i < rows; i++) {
-            local_result[i] = 0.0;
-        }
+        double local_sum = 0.0;
         
-        // Ring topology: mỗi luồng xử lý các cột theo vòng tròn
+        // Ring topology: mỗi luồng xử lý các khối theo vòng tròn
         for (int round = 0; round < num_t; round++) {
             int current_block = (tid + round) % num_t;
-            int start_col = current_block * block_size;
-            int end_col = min(start_col + block_size, cols);
+            long long start_idx = current_block * block_size;
+            long long end_idx = min(start_idx + block_size, size);
             
-            // Tính tích cho khối cột hiện tại
-            for (int i = 0; i < rows; i++) {
-                for (int j = start_col; j < end_col; j++) {
-                    local_result[i] += matrix[i][j] * vec[j];
-                }
+            // Tính tích cho khối hiện tại
+            for (long long i = start_idx; i < end_idx; i++) {
+                local_sum += vec1[i] * vec2[i];
             }
             
             #pragma omp barrier
@@ -261,28 +201,26 @@ void multiplyRingTopology(double** matrix, double* vec, double* result,
         // Gộp kết quả
         #pragma omp critical
         {
-            for (int i = 0; i < rows; i++) {
-                result[i] += local_result[i];
-            }
+            result += local_sum;
         }
-        
-        delete[] local_result;
     }
     
     time_taken = omp_get_wtime() - start_time;
+    return result;
 }
 
 // In kết quả
-void printResult(const string& method, int rows, int cols, int threads, 
-                double time_taken, double speedup, double efficiency, 
-                bool is_correct, bool is_sequential = false) {
+void printResult(const string& method, long long size, int threads, 
+                double result, double time_taken, double speedup, 
+                double efficiency, bool is_correct, bool is_sequential = false) {
     cout << "+----------------------------------------------------------+" << endl;
     cout << "|  " << left << setw(56) << method << "|" << endl;
     cout << "+----------------------------------------------------------+" << endl;
-    cout << "| Kich thuoc ma tran:    " << setw(32) << (to_string(rows) + "x" + to_string(cols)) << "|" << endl;
+    cout << "| Kich thuoc vector:     " << setw(32) << size << "|" << endl;
     if (!is_sequential) {
         cout << "| So luong:              " << setw(32) << threads << "|" << endl;
     }
+    cout << "| Ket qua (dot product): " << setw(32) << fixed << setprecision(6) << result << "|" << endl;
     cout << "| Thoi gian:             " << setw(26) << fixed << setprecision(6) 
          << time_taken << " giay |" << endl;
     if (!is_sequential) {
@@ -336,14 +274,14 @@ void exportChartData(const string& filename,
     file << "bars1 = ax1.bar(x_pos, times, color=colors[:len(methods)])" << endl;
     file << "ax1.set_xlabel('Phuong phap', fontsize=12)" << endl;
     file << "ax1.set_ylabel('Thoi gian (giay)', fontsize=12)" << endl;
-    file << "ax1.set_title('So sanh thoi gian thuc thi', fontsize=14, fontweight='bold')" << endl;
+    file << "ax1.set_title('So sanh thoi gian thuc thi - Tich vo huong vector', fontsize=14, fontweight='bold')" << endl;
     file << "ax1.set_xticks(x_pos)" << endl;
     file << "ax1.set_xticklabels(methods, rotation=15, ha='right', fontsize=9)" << endl;
     file << "ax1.grid(True, alpha=0.3, axis='y')" << endl;
     file << "for bar in bars1:" << endl;
     file << "    height = bar.get_height()" << endl;
     file << "    ax1.text(bar.get_x() + bar.get_width()/2., height," << endl;
-    file << "            f'{height:.4f}', ha='center', va='bottom', fontsize=8)" << endl << endl;
+    file << "            f'{height:.6f}', ha='center', va='bottom', fontsize=8)" << endl << endl;
     
     file << "speedup_methods = methods[1:]" << endl;
     file << "speedup_values = speedups[1:]" << endl;
@@ -375,14 +313,15 @@ int main() {
     srand((unsigned int)time(NULL));
     
     cout << "\n+============================================================+" << endl;
-    cout << "|     CHUONG TRINH NHAN MA TRAN VOI VECTOR - OpenMP         |" << endl;
+    cout << "|     CHUONG TRINH TICH VO HUONG VECTOR - OpenMP            |" << endl;
+    cout << "|              (Vector Dot Product)                          |" << endl;
     cout << "+============================================================+\n" << endl;
     
     // Đọc cấu hình
     Config config = readConfig("matrix_config.txt");
     
     cout << "================ CAU HINH =================" << endl;
-    cout << "Kich thuoc ma tran: " << config.matrix_rows << "x" << config.matrix_cols << endl;
+    cout << "Kich thuoc vector: " << config.vector_size << endl;
     cout << "So luong: " << config.num_threads << endl;
     cout << "Phuong phap chay:" << endl;
     if (config.run_sequential) cout << "  - Tuan tu" << endl;
@@ -391,28 +330,22 @@ int main() {
     if (config.run_ring_topology) cout << "  - Ket noi vong" << endl;
     cout << "==========================================\n" << endl;
     
-    // 1.1.1 Tạo ma trận và vector ngẫu nhiên
-    cout << "-> Dang tao ma tran va vector ngau nhien..." << endl;
-    double** matrix;
-    double* vec;
-    double* result_seq;
-    double* result_1d;
-    double* result_2d;
-    double* result_ring;
+    // 1.1.1 Tạo 2 vector ngẫu nhiên
+    cout << "-> Dang tao 2 vector ngau nhien..." << endl;
+    double* vec1;
+    double* vec2;
     
-    createRandomMatrix(matrix, config.matrix_rows, config.matrix_cols);
-    createRandomVector(vec, config.matrix_cols);
-    
-    result_seq = new double[config.matrix_rows];
-    result_1d = new double[config.matrix_rows];
-    result_2d = new double[config.matrix_rows];
-    result_ring = new double[config.matrix_rows];
+    createRandomVector(vec1, config.vector_size);
+    createRandomVector(vec2, config.vector_size);
     
     cout << "Hoan tat!\n" << endl;
     
     // Hiển thị mẫu dữ liệu
-    printMatrixSample(matrix, config.matrix_rows, config.matrix_cols, 5);
-    printVectorSample(vec, config.matrix_cols, 10);
+    cout << "Vector 1:" << endl;
+    printVectorSample(vec1, config.vector_size, 10);
+    
+    cout << "Vector 2:" << endl;
+    printVectorSample(vec2, config.vector_size, 10);
     
     cout << "\n=============== BAT DAU TINH TOAN ===============\n" << endl;
     
@@ -420,74 +353,74 @@ int main() {
     vector<double> times;
     vector<double> speedups;
     double time_seq = 0;
+    double result_seq = 0;
     
-    // 1.2.1 Nhân tuần tự
+    // 1.2.1 Tích vô hướng tuần tự
     if (config.run_sequential) {
-        cout << "-> Dang thuc hien nhan TUAN TU..." << endl;
-        multiplySequential(matrix, vec, result_seq, config.matrix_rows, 
-                          config.matrix_cols, time_seq);
-        printResult("NHAN TUAN TU", config.matrix_rows, config.matrix_cols, 
-                   0, time_seq, 0, 0, true, true);
+        cout << "-> Dang thuc hien tinh toan TUAN TU..." << endl;
+        result_seq = dotProductSequential(vec1, vec2, config.vector_size, time_seq);
+        printResult("TICH VO HUONG TUAN TU", config.vector_size, 
+                   0, result_seq, time_seq, 0, 0, true, true);
         
         methods.push_back("Tuan tu");
         times.push_back(time_seq);
         speedups.push_back(1.0);
     }
     
-    // 1.2.2 Nhân song song phân hoạch 1 chiều
+    // 1.2.2 Tích vô hướng song song phân hoạch 1 chiều
     if (config.run_1d_partition) {
-        cout << "-> Dang thuc hien nhan SONG SONG - Phan hoach 1 chieu..." << endl;
+        cout << "-> Dang thuc hien tinh toan SONG SONG - Phan hoach 1 chieu..." << endl;
         double time_1d;
-        multiply1DPartition(matrix, vec, result_1d, config.matrix_rows, 
-                           config.matrix_cols, config.num_threads, time_1d);
+        double result_1d = dotProduct1DPartition(vec1, vec2, config.vector_size, 
+                                                 config.num_threads, time_1d);
         
         double speedup = time_seq / time_1d;
         double efficiency = speedup / config.num_threads;
-        bool is_correct = compareVectors(result_seq, result_1d, config.matrix_rows);
+        bool is_correct = compareResults(result_seq, result_1d);
         
-        printResult("NHAN SONG SONG - Phan hoach 1 chieu", 
-                   config.matrix_rows, config.matrix_cols, config.num_threads,
-                   time_1d, speedup, efficiency, is_correct);
+        printResult("TICH VO HUONG SONG SONG - Phan hoach 1 chieu", 
+                   config.vector_size, config.num_threads,
+                   result_1d, time_1d, speedup, efficiency, is_correct);
         
         methods.push_back("Song song 1D");
         times.push_back(time_1d);
         speedups.push_back(speedup);
     }
     
-    // 1.2.3 Nhân song song phân hoạch 2 chiều
+    // 1.2.3 Tích vô hướng song song phân hoạch 2 chiều
     if (config.run_2d_partition) {
-        cout << "-> Dang thuc hien nhan SONG SONG - Phan hoach 2 chieu..." << endl;
+        cout << "-> Dang thuc hien tinh toan SONG SONG - Phan hoach 2 chieu..." << endl;
         double time_2d;
-        multiply2DPartition(matrix, vec, result_2d, config.matrix_rows, 
-                           config.matrix_cols, config.num_threads, time_2d);
+        double result_2d = dotProduct2DPartition(vec1, vec2, config.vector_size, 
+                                                 config.num_threads, time_2d);
         
         double speedup = time_seq / time_2d;
         double efficiency = speedup / config.num_threads;
-        bool is_correct = compareVectors(result_seq, result_2d, config.matrix_rows);
+        bool is_correct = compareResults(result_seq, result_2d);
         
-        printResult("NHAN SONG SONG - Phan hoach 2 chieu", 
-                   config.matrix_rows, config.matrix_cols, config.num_threads,
-                   time_2d, speedup, efficiency, is_correct);
+        printResult("TICH VO HUONG SONG SONG - Phan hoach 2 chieu", 
+                   config.vector_size, config.num_threads,
+                   result_2d, time_2d, speedup, efficiency, is_correct);
         
         methods.push_back("Song song 2D");
         times.push_back(time_2d);
         speedups.push_back(speedup);
     }
     
-    // 1.2.4 Nhân song song kết nối vòng
+    // 1.2.4 Tích vô hướng kết nối vòng
     if (config.run_ring_topology) {
-        cout << "-> Dang thuc hien nhan SONG SONG - Ket noi vong..." << endl;
+        cout << "-> Dang thuc hien tinh toan SONG SONG - Ket noi vong..." << endl;
         double time_ring;
-        multiplyRingTopology(matrix, vec, result_ring, config.matrix_rows, 
-                            config.matrix_cols, config.num_threads, time_ring);
+        double result_ring = dotProductRingTopology(vec1, vec2, config.vector_size, 
+                                                    config.num_threads, time_ring);
         
         double speedup = time_seq / time_ring;
         double efficiency = speedup / config.num_threads;
-        bool is_correct = compareVectors(result_seq, result_ring, config.matrix_rows);
+        bool is_correct = compareResults(result_seq, result_ring);
         
-        printResult("NHAN SONG SONG - Ket noi vong (Ring Topology)", 
-                   config.matrix_rows, config.matrix_cols, config.num_threads,
-                   time_ring, speedup, efficiency, is_correct);
+        printResult("TICH VO HUONG SONG SONG - Ket noi vong (Ring Topology)", 
+                   config.vector_size, config.num_threads,
+                   result_ring, time_ring, speedup, efficiency, is_correct);
         
         methods.push_back("Ring Topology");
         times.push_back(time_ring);
@@ -512,12 +445,8 @@ int main() {
     cout << "Da xuat du lieu do thi vao file: plot_matrix_chart.py" << endl;
     
     // Giải phóng bộ nhớ
-    freeMatrix(matrix, config.matrix_rows);
-    delete[] vec;
-    delete[] result_seq;
-    delete[] result_1d;
-    delete[] result_2d;
-    delete[] result_ring;
+    delete[] vec1;
+    delete[] vec2;
     
     cout << "\n+============================================================+" << endl;
     cout << "|                HOAN THANH TINH TOAN!                      |" << endl;

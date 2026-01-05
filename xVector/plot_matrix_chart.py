@@ -4,8 +4,8 @@ import numpy as np
 plt.rcParams['font.family'] = 'Arial'
 
 methods = ['Tuan tu', 'Song song 1D', 'Song song 2D', 'Ring Topology']
-times = [0.00200009, 0.00100017, 0.000999928, 0.00300002]
-speedups = [1, 1.99976, 2.00024, 0.666693]
+times = [0.0079999, 0.00300002, 0.00300002, 0.0209999]
+speedups = [1, 2.66661, 2.66661, 0.380949]
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
@@ -15,14 +15,14 @@ x_pos = np.arange(len(methods))
 bars1 = ax1.bar(x_pos, times, color=colors[:len(methods)])
 ax1.set_xlabel('Phuong phap', fontsize=12)
 ax1.set_ylabel('Thoi gian (giay)', fontsize=12)
-ax1.set_title('So sanh thoi gian thuc thi', fontsize=14, fontweight='bold')
+ax1.set_title('So sanh thoi gian thuc thi - Tich vo huong vector', fontsize=14, fontweight='bold')
 ax1.set_xticks(x_pos)
 ax1.set_xticklabels(methods, rotation=15, ha='right', fontsize=9)
 ax1.grid(True, alpha=0.3, axis='y')
 for bar in bars1:
     height = bar.get_height()
     ax1.text(bar.get_x() + bar.get_width()/2., height,
-            f'{height:.4f}', ha='center', va='bottom', fontsize=8)
+            f'{height:.6f}', ha='center', va='bottom', fontsize=8)
 
 speedup_methods = methods[1:]
 speedup_values = speedups[1:]
