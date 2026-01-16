@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 plt.rcParams['font.family'] = 'Arial'
 
-methods = ['Tuan tu', 'Song song 1D', 'Song song 2D', 'Ring Topology']
-times = [0.0079999, 0.00300002, 0.00300002, 0.0209999]
-speedups = [1, 2.66661, 2.66661, 0.380949]
+methods = ['Tuan tu', '1D Partition', '2D Partition', 'Ring Topology']
+times = [0.222, 0.049, 0.0439999, 0.0469999]
+speedups = [1, 4.53061, 5.04546, 4.72341]
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
